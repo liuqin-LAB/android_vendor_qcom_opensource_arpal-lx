@@ -1277,16 +1277,19 @@ constexpr int kCirrusMaxChannels = 4;
 
 static int adev_crus_smartpa_init(struct mixer* mixer) {
     static bool cirrusSmartpaInitialized = false;
-    const std::unordered_map<int, std::vector<std::string>> channelPrefixMap = {
-            {1, {"SPK "}},
-            {2, {"T ", "B "}},
-            {4, {"TL ", "TH ", "BL ", "BH "}},
+    const std::unordered_map<int, std::vector<std::vector<std::string>>> channelPrefixMap = {
+            {1, {{"SPK "}}},
+            {2, {{"T ", "B "}}},
+            {4, {{"TL ", "TH ", "BL ", "BH "}}},
     };
     const std::string dspFirmwareMixer = "DSP1 Firmware";
-    const std::string resistanceMixer = "Calibration Resistance";
+    const std::vector<std::string> resistanceMixers = {
+            "Calibration Resistance",
+    };
     const std::filesystem::path calibrationPath("/mnt/vendor/persist/audio/crus_calr.bin");
     std::ifstream calibrationFile;
     uint32_t calibrationValues[kCirrusMaxChannels]{0};
+    std::vector<std::string> channelPrefixes;
     int numChannels, retry;
 
     if (cirrusSmartpaInitialized) {
@@ -1319,22 +1322,26 @@ static int adev_crus_smartpa_init(struct mixer* mixer) {
     /* Check if smartpa driver is ready in case of working as module */
     for (retry = 300; retry; retry--) {
         /* Assume speaker is ready when firmware mixer is available */
-        int i;
-        for (i = 0; i < numChannels; i++) {
-            const std::string mixer_ctl_name =
-                    channelPrefixMap.at(numChannels)[i] + dspFirmwareMixer;
-            struct mixer_ctl* ctl = mixer_get_ctl_by_name(mixer, mixer_ctl_name.c_str());
-            if (!ctl) {
-                PAL_DBG(LOG_TAG, "Could not get ctl for mixer cmd - %s(%d retries left)",
-                        mixer_ctl_name.c_str(), retry);
+        for (const auto& prefixes : channelPrefixMap.at(numChannels)) {
+            int i;
+            for (i = 0; i < numChannels; i++) {
+                const std::string mixer_ctl_name = prefixes[i] + dspFirmwareMixer;
+                struct mixer_ctl* ctl = mixer_get_ctl_by_name(mixer, mixer_ctl_name.c_str());
+                if (!ctl) {
+                    PAL_DBG(LOG_TAG, "Could not get ctl for mixer cmd - %s(%d retries left)",
+                            mixer_ctl_name.c_str(), retry);
+                    break;
+                }
+            }
+            if (i == numChannels) {
+                channelPrefixes = prefixes;
                 break;
             }
         }
-        if (i != numChannels) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            continue;
+        if (!channelPrefixes.empty()) {
+            break;
         }
-        break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     /* Driver is not ready yet? */
@@ -1351,8 +1358,15 @@ static int adev_crus_smartpa_init(struct mixer* mixer) {
                     Z_TO_OHM(calibrationValues[i]), calibrationValues[i]);
             continue;
         }
-        const std::string mixer_ctl_name = channelPrefixMap.at(numChannels)[i] + resistanceMixer;
-        struct mixer_ctl* ctl = mixer_get_ctl_by_name(mixer, mixer_ctl_name.c_str());
+        std::string mixer_ctl_name;
+        struct mixer_ctl* ctl = nullptr;
+        for (const auto& resistanceMixer : resistanceMixers) {
+            mixer_ctl_name = channelPrefixes[i] + resistanceMixer;
+            ctl = mixer_get_ctl_by_name(mixer, mixer_ctl_name.c_str());
+            if (ctl) {
+                break;
+            }
+        }
         if (!ctl) {
             PAL_ERR(LOG_TAG, "Could not get ctl for mixer cmd - %s", mixer_ctl_name.c_str());
             return -EINVAL;
