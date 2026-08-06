@@ -1280,7 +1280,8 @@ static int adev_crus_smartpa_init(struct mixer* mixer) {
     const std::unordered_map<int, std::vector<std::vector<std::string>>> channelPrefixMap = {
             {1, {{"SPK "}}},
             {2, {{"T ", "B "}}},
-            {4, {{"TL ", "TH ", "BL ", "BH "}}},
+            {4, {{"TL ", "TH ", "BL ", "BH "},
+                 {"TL ", "TR ", "BL ", "BR "}}},
     };
     const std::string dspFirmwareMixer = "DSP1 Firmware";
     const std::vector<std::string> resistanceMixers = {
