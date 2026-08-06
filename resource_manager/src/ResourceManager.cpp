@@ -1327,7 +1327,7 @@ static int adev_crus_smartpa_init(struct mixer* mixer) {
             if (!ctl) {
                 PAL_DBG(LOG_TAG, "Could not get ctl for mixer cmd - %s(%d retries left)",
                         mixer_ctl_name.c_str(), retry);
-                continue;
+                break;
             }
         }
         if (i != numChannels) {
