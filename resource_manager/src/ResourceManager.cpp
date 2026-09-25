@@ -1271,7 +1271,7 @@ char* ResourceManager::getDeviceNameFromID(uint32_t id)
 #ifdef AUDIO_CIRRUS_CALIBRATION_RESISTANCE
 constexpr int kCirrusResistanceMin = 7728;
 constexpr int kCirrusResistanceMax = 10454;
-constexpr int kCirrusMaxChannels = 4;
+constexpr int kCirrusMaxChannels = 8;
 
 #define Z_TO_OHM(z) ((z) * 5.85714 / 8192.0)
 
@@ -1282,10 +1282,13 @@ static int adev_crus_smartpa_init(struct mixer* mixer) {
             {2, {{"T ", "B "}}},
             {4, {{"TL ", "TH ", "BL ", "BH "},
                  {"TL ", "TR ", "BL ", "BR "}}},
+            {8, {{"TLH ", "TRH ", "BLH ", "BRH ",
+                  "TLL ", "TRL ", "BLL ", "BRL "}}},
     };
     const std::string dspFirmwareMixer = "DSP1 Firmware";
     const std::vector<std::string> resistanceMixers = {
             "Calibration Resistance",
+            "DSP Set CAL_R",
     };
     const std::filesystem::path calibrationPath("/mnt/vendor/persist/audio/crus_calr.bin");
     std::ifstream calibrationFile;
